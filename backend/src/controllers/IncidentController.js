@@ -4,20 +4,24 @@ module.exports = {
   async index(req, res) {
     const { page = 1 } = req.query;
 
-    const [count] = await db('incidents').count();
+    const incidentsCountPromise = db('incidents').count();
+    const incidentsPromise = db('incidents')
+    .select([
+      'incidents.*',
+      'ongs.name',
+      'ongs.whatsapp',
+      'ongs.email',
+      'ongs.city',
+      'ongs.uf'
+    ])
+    .join('ongs', 'ongs.id', '=', 'incidents.ong_id')
+    .limit(5)
+    .offset((page - 1) * 5);
 
-    const incidents = await db('incidents')
-      .select([
-        'incidents.*',
-        'ongs.name',
-        'ongs.whatsapp',
-        'ongs.email',
-        'ongs.city',
-        'ongs.uf'
-      ])
-      .join('ongs', 'ongs.id', '=', 'incidents.ong_id')
-      .limit(5)
-      .offset((page - 1) * 5);
+    const promisesResults = await Promise.all([incidentsCountPromise, incidentsPromise]);
+
+    const [count] = promisesResults[0];
+    const incidents = promisesResults[1];
 
     res.header('X-Total-Count', count['count(*)']);
 
